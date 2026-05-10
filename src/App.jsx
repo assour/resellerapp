@@ -7,19 +7,22 @@ import {
   DollarSign,
   Download,
   Link2,
+  LogOut,
   PackagePlus,
   Plus,
   RefreshCcw,
   Search,
   Settings,
+  ShieldCheck,
   ShoppingBag,
   Store,
+  Upload,
   XCircle
 } from 'lucide-react';
-import { demoMode, marketplaceConfig } from './config';
+import { demoMode, getMissingMarketplaceKeys, isMarketplaceConfigured, marketplaceConfig, supabaseConfigured, useSupabaseData } from './config';
 import { marketplaces } from './data/mockData';
 import { getDashboardData } from './services/analyticsService';
-import { getCurrentUser } from './services/authService';
+import { getCurrentUser, signInWithEmail, signOut, signUpWithEmail } from './services/authService';
 import { getProducts, markProductSold, resetDemoData, saveProduct } from './services/inventoryService';
 import { getConnections, setConnection } from './services/marketplaceService';
 
@@ -88,6 +91,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const missingMarketplaceKeys = getMissingMarketplaceKeys();
 
   async function refreshData() {
     setLoading(true);
@@ -135,7 +139,7 @@ function App() {
     try {
       const next = await setConnection(marketplaceId, connected);
       setConnections(next);
-      setNotice(`${marketplaceConfig[marketplaceId].label} ${connected ? 'connected' : 'disconnected'} locally.`);
+      setNotice(`${marketplaceConfig[marketplaceId].label} ${connected ? 'connected' : 'disconnected'} ${useSupabaseData ? 'in Supabase' : 'locally'}.`);
       await refreshData();
     } catch (err) {
       setError(err.message);
@@ -156,7 +160,7 @@ function App() {
   async function handleSaveProduct(product, publish) {
     try {
       await saveProduct(product, publish);
-      setNotice(publish ? 'Product listed in demo mode.' : 'Product saved as a draft.');
+      setNotice(publish ? `Product listed in ${useSupabaseData ? 'Supabase mode' : 'demo mode'}.` : 'Product saved as a draft.');
       setEditingProduct(null);
       navigate('inventory');
       await refreshData();
@@ -166,9 +170,41 @@ function App() {
   }
 
   async function handleReset() {
-    await resetDemoData();
-    setNotice('Demo data reset.');
-    await refreshData();
+    try {
+      await resetDemoData();
+      setNotice('Demo data reset.');
+      await refreshData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleAuthSubmit({ mode, name, email, password }) {
+    try {
+      if (mode === 'sign-up') {
+        await signUpWithEmail(name, email, password);
+        setNotice('Account created. Check your email if Supabase requires confirmation.');
+      } else {
+        await signInWithEmail(email, password);
+        setNotice('Signed in.');
+      }
+      await refreshData();
+    } catch (err) {
+      setError(err.message || 'Could not complete sign in.');
+    }
+  }
+
+  async function handleSignOut() {
+    try {
+      await signOut();
+      setUser(null);
+      setProducts([]);
+      setConnections({});
+      setDashboard(null);
+      setNotice('Signed out.');
+    } catch (err) {
+      setError(err.message || 'Could not sign out.');
+    }
   }
 
   const page = useMemo(() => {
@@ -180,6 +216,7 @@ function App() {
       onConnection: handleConnection,
       onSaveProduct: handleSaveProduct,
       onReset: handleReset,
+      onSignOut: handleSignOut,
       setActivePage: navigate,
       onEditProduct: (product) => {
         setEditingProduct(product);
@@ -187,6 +224,7 @@ function App() {
         setActivePage('add');
       },
       editingProduct,
+      missingMarketplaceKeys,
       user
     };
 
@@ -200,6 +238,8 @@ function App() {
       settings: <SettingsPage {...props} />
     }[activePage];
   }, [activePage, products, connections, dashboard, user, editingProduct]);
+
+  const requiresAuth = useSupabaseData && !user;
 
   return (
     <div className="app-shell">
@@ -226,12 +266,12 @@ function App() {
       <main className="content">
         <header className="topbar">
           <div>
-            <p>{demoMode ? 'Demo workspace' : 'Production workspace'}</p>
+            <p>{demoMode ? 'Demo workspace' : 'Supabase workspace'}</p>
             <h1>{navItems.find((item) => item.id === activePage)?.label}</h1>
           </div>
           <div className="user-pill">
             <span>{user?.name || 'Demo Reseller'}</span>
-            <Badge tone={demoMode ? 'success' : 'warning'}>{demoMode ? 'Demo mode' : 'Live mode'}</Badge>
+            <Badge tone={demoMode ? 'success' : 'warning'}>{demoMode ? 'Demo mode' : 'Supabase mode'}</Badge>
           </div>
         </header>
 
@@ -250,9 +290,42 @@ function App() {
           </div>
         )}
 
-        {loading ? <div className="loading">Loading reseller workspace...</div> : page}
+        {loading ? <div className="loading">Loading reseller workspace...</div> : requiresAuth ? <AuthPanel onSubmit={handleAuthSubmit} /> : page}
       </main>
     </div>
+  );
+}
+
+function AuthPanel({ onSubmit }) {
+  const [mode, setMode] = useState('sign-in');
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+
+  function update(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function submit(event) {
+    event.preventDefault();
+    onSubmit({ ...form, mode });
+  }
+
+  return (
+    <section className="panel auth-panel">
+      <ShieldCheck size={30} />
+      <h2>{mode === 'sign-up' ? 'Create your reseller account' : 'Sign in to your workspace'}</h2>
+      <p className="muted">Supabase mode stores inventory, connection states, activity, and uploaded photos in your project.</p>
+      <form onSubmit={submit}>
+        {mode === 'sign-up' && (
+          <label>Name<input value={form.name} onChange={(event) => update('name', event.target.value)} required /></label>
+        )}
+        <label>Email<input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} required /></label>
+        <label>Password<input type="password" value={form.password} onChange={(event) => update('password', event.target.value)} required minLength={6} /></label>
+        <button type="submit">{mode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
+      </form>
+      <button className="ghost-button" onClick={() => setMode(mode === 'sign-up' ? 'sign-in' : 'sign-up')}>
+        {mode === 'sign-up' ? 'I already have an account' : 'Create an account'}
+      </button>
+    </section>
   );
 }
 
@@ -370,7 +443,7 @@ function ProductTable({ products, onEditProduct }) {
                   <div className="photo-placeholder">{product.title.slice(0, 1)}</div>
                   <div>
                     <strong>{product.title}</strong>
-                    <span>{product.brand} · {product.size} · {product.condition}</span>
+                    <span>{product.brand} - {product.size} - {product.condition}</span>
                   </div>
                 </div>
               </td>
@@ -402,6 +475,7 @@ function AddProduct({ onSaveProduct, editingProduct }) {
     condition: 'Good',
     cost: '',
     listingPrice: '',
+    photoFiles: [],
     selectedMarketplaces: ['ebay', 'depop', 'poshmark']
   };
   const [form, setForm] = useState(blankForm);
@@ -417,6 +491,7 @@ function AddProduct({ onSaveProduct, editingProduct }) {
       ...editingProduct,
       cost: String(editingProduct.cost ?? ''),
       listingPrice: String(editingProduct.listingPrice ?? ''),
+      photoFiles: [],
       selectedMarketplaces: Object.entries(editingProduct.marketplaceStatus)
         .filter(([, status]) => status === 'listed')
         .map(([id]) => id)
@@ -463,7 +538,14 @@ function AddProduct({ onSaveProduct, editingProduct }) {
         <label>Listing price<input type="number" value={form.listingPrice} onChange={(event) => update('listingPrice', event.target.value)} /></label>
         <label className="span-2">Description<textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></label>
       </div>
-      <div className="photo-drop">Photos placeholder: add real upload storage later with Supabase or another backend.</div>
+      <div className="photo-drop">
+        <Upload size={20} />
+        <div>
+          <strong>{form.photoFiles.length ? `${form.photoFiles.length} photo file(s) selected` : 'Photos'}</strong>
+          <span>{useSupabaseData ? 'Files upload to Supabase Storage after you save.' : 'Demo mode stores photo file names only.'}</span>
+        </div>
+        <input type="file" accept="image/*" multiple onChange={(event) => update('photoFiles', Array.from(event.target.files || []))} />
+      </div>
       <div className="marketplace-checks">
         {marketplaces.map((marketplace) => (
           <label key={marketplace.id}>
@@ -490,7 +572,7 @@ function Connections({ connections, onConnection }) {
             <div>
               <h2>{marketplace.name}</h2>
               <Badge tone={connected ? 'success' : 'neutral'}>{connected ? 'Connected' : 'Disconnected'}</Badge>
-              <p>{connected ? 'Ready for demo listings and local sync.' : 'Connect locally to test the UI state.'}</p>
+              <p>{isMarketplaceConfigured(marketplace.id) ? 'API keys are present for future official integration.' : 'Demo connection only until official API keys are added.'}</p>
             </div>
             <button className={connected ? 'secondary' : ''} onClick={() => onConnection(marketplace.id, !connected)}>
               {connected ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
@@ -570,7 +652,7 @@ function Analytics({ dashboard }) {
   );
 }
 
-function SettingsPage({ user, onReset }) {
+function SettingsPage({ user, onReset, onSignOut, missingMarketplaceKeys }) {
   return (
     <div className="page-grid">
       <section className="panel">
@@ -578,14 +660,18 @@ function SettingsPage({ user, onReset }) {
         <div className="settings-row"><span>Mode</span><Badge tone="success">{demoMode ? 'Demo mode active' : 'Live mode'}</Badge></div>
         <div className="settings-row"><span>Name</span><strong>{user?.name}</strong></div>
         <div className="settings-row"><span>Email</span><strong>{user?.email}</strong></div>
-        <button className="secondary" onClick={onReset}><RefreshCcw size={16} /> Reset demo data</button>
+        {demoMode ? (
+          <button className="secondary" onClick={onReset}><RefreshCcw size={16} /> Reset demo data</button>
+        ) : (
+          <button className="secondary" onClick={onSignOut}><LogOut size={16} /> Sign out</button>
+        )}
       </section>
       <section className="panel">
-        <h2>API placeholders</h2>
+        <h2>API readiness</h2>
         <p className="muted">Add Vite environment variables when you are ready to connect real services.</p>
-        <div className="settings-row"><span>Supabase</span><Badge>Placeholder</Badge></div>
+        <div className="settings-row"><span>Supabase</span><Badge tone={supabaseConfigured ? 'success' : 'warning'}>{supabaseConfigured ? 'Configured' : 'Missing keys'}</Badge></div>
         <div className="settings-row"><span>Stripe</span><Badge>Placeholder</Badge></div>
-        <div className="settings-row"><span>Marketplace APIs</span><Badge>Official APIs only</Badge></div>
+        <div className="settings-row"><span>Marketplace APIs</span><Badge>{missingMarketplaceKeys.length ? `${missingMarketplaceKeys.length} missing` : 'Configured'}</Badge></div>
       </section>
       <section className="panel">
         <h2>Data and policies</h2>

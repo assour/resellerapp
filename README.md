@@ -10,6 +10,7 @@ Reseller Command Center is a React + Vite web app for resellers who want to mana
 - Shows marketplace connection cards and listing status by marketplace.
 - Demonstrates auto-delist behavior when an item sells on one marketplace.
 - Uses demo data and localStorage so you can test the UI without real API keys.
+- Includes Supabase-ready auth, database, and photo upload wiring for the next production step.
 
 ## Tech Stack
 
@@ -18,6 +19,7 @@ Reseller Command Center is a React + Vite web app for resellers who want to mana
 - JavaScript
 - CSS
 - localStorage for demo persistence
+- Supabase-ready service layer
 - lucide-react icons
 
 ## Required Software
@@ -97,6 +99,26 @@ Demo user:
 - Name: Demo Reseller
 - Email: demo@example.com
 
+## Supabase Mode
+
+Supabase mode is prepared but stays off until you configure it.
+
+1. Create a Supabase project.
+2. Run the SQL in `supabase/schema.sql`.
+3. Copy `.env.example` to `.env`.
+4. Set:
+
+```bash
+VITE_DEMO_MODE=false
+VITE_SUPABASE_URL=your_project_url
+VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_SUPABASE_STORAGE_BUCKET=product-photos
+```
+
+5. Restart the dev server.
+
+See `docs/supabase-setup.md` for the full setup guide.
+
 ## How To Test The App
 
 1. Run `npm install`.
@@ -148,6 +170,19 @@ Before deploying:
 - Avoid scraping or browser automation that violates marketplace terms.
 - A production app needs a privacy policy and terms of service.
 - Real payment and marketplace integrations should be handled carefully with server-side code where needed.
+- Supabase service-role keys must never be placed in frontend `.env` files.
+- Marketplace OAuth token exchange and refresh-token storage should happen on a backend or Supabase Edge Function.
+
+## Marketplace API Notes
+
+See `docs/marketplace-api-research.md` for the current marketplace integration research.
+
+Short version:
+
+- eBay has the clearest official API path through the Sell Inventory API.
+- Depop has an official Selling API, but it is private and requires partner access.
+- Facebook Marketplace, Mercari, and Poshmark should stay manual or import/export-based unless official access is granted.
+- Do not scrape or automate unsupported marketplaces.
 
 ## App Store And Play Store Note
 

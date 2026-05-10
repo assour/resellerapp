@@ -1,5 +1,11 @@
 const env = import.meta.env || {};
 
+export const supabaseConfig = {
+  url: env.VITE_SUPABASE_URL,
+  anonKey: env.VITE_SUPABASE_ANON_KEY,
+  storageBucket: env.VITE_SUPABASE_STORAGE_BUCKET || 'product-photos'
+};
+
 export const marketplaceConfig = {
   ebay: {
     label: 'eBay',
@@ -28,15 +34,27 @@ export const marketplaceConfig = {
   }
 };
 
-export function isDemoMode() {
-  const explicitDemo = String(env.VITE_DEMO_MODE ?? 'true').toLowerCase() === 'true';
-  const missingMarketplaceKeys = Object.values(marketplaceConfig).some((marketplace) => !marketplace.clientId);
+export const explicitDemoMode = String(env.VITE_DEMO_MODE ?? 'true').toLowerCase() === 'true';
+export const supabaseConfigured = Boolean(supabaseConfig.url && supabaseConfig.anonKey);
+export const useSupabaseData = !explicitDemoMode && supabaseConfigured;
 
-  if (!explicitDemo && missingMarketplaceKeys) {
-    console.warn('Marketplace API keys are missing. Falling back to demo mode.');
+export function isDemoMode() {
+  if (!explicitDemoMode && !supabaseConfigured) {
+    console.warn('Supabase keys are missing. Falling back to demo mode.');
   }
 
-  return explicitDemo || missingMarketplaceKeys;
+  return explicitDemoMode || !supabaseConfigured;
+}
+
+export function isMarketplaceConfigured(marketplaceId) {
+  const config = marketplaceConfig[marketplaceId];
+  return Boolean(config?.clientId && config?.redirectUri);
+}
+
+export function getMissingMarketplaceKeys() {
+  return Object.entries(marketplaceConfig)
+    .filter(([, config]) => !config.clientId || !config.redirectUri)
+    .map(([id, config]) => ({ id, label: config.label }));
 }
 
 export const demoMode = isDemoMode();

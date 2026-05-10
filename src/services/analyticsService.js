@@ -1,8 +1,9 @@
 import { marketplaceConfig } from '../config';
-import { demoStore } from './storage';
+import { getActivity } from './activityService';
+import { getProducts } from './inventoryService';
 
 export async function getDashboardData() {
-  const products = demoStore.getProducts();
+  const products = await getProducts();
   const listed = products.filter((product) => product.status === 'listed');
   const sold = products.filter((product) => product.status === 'sold');
   const grossSales = sold.reduce((sum, product) => sum + Number(product.soldPrice || 0), 0);
@@ -32,7 +33,7 @@ export async function getDashboardData() {
     averageProfitMargin: grossSales ? Math.round((estimatedProfit / grossSales) * 100) : 0,
     bestMarketplace: marketplaceConfig[bestMarketplaceId]?.label || 'eBay',
     unsoldInventoryCount: products.filter((product) => product.status !== 'sold').length,
-    recentActivity: demoStore.getActivity(),
+    recentActivity: await getActivity(),
     marketplaceSales,
     bestCategory
   };
