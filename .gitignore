@@ -1,6 +1,10 @@
 node_modules
 dist
+.next
+out
 .npm-cache
+tsconfig.tsbuildinfo
+.resellsync-token-vault.json
 .env
 .env.local
 .env.production

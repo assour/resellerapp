@@ -1,6 +1,6 @@
 # Supabase Setup
 
-This app still starts in demo mode by default. Supabase mode turns on only when `VITE_DEMO_MODE=false` and both Supabase keys are present.
+This app starts with a local mock database by default. Supabase files are included so the demo can later become a real multi-user app.
 
 ## 1. Create A Supabase Project
 
@@ -27,15 +27,15 @@ The schema creates:
 - a public `product-photos` storage bucket
 - row level security policies so users can only access their own data
 
-## 3. Update `.env`
+## 3. Update `.env.local`
 
-Copy `.env.example` to `.env`, then fill in:
+Copy `.env.example` to `.env.local`, then fill in:
 
 ```bash
-VITE_DEMO_MODE=false
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-VITE_SUPABASE_STORAGE_BUCKET=product-photos
+NEXT_PUBLIC_DEMO_MODE=false
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=product-photos
 ```
 
 Restart the local dev server after editing `.env`.
@@ -46,7 +46,7 @@ Restart the local dev server after editing `.env`.
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173).
+Open [http://localhost:3000](http://localhost:3000).
 
 You should see a sign-in screen. Create an account, then test:
 
@@ -60,6 +60,6 @@ You should see a sign-in screen. Create an account, then test:
 
 ## Notes
 
-- The frontend uses the anon key only. Never put service-role keys in Vite.
-- Real marketplace OAuth token exchange should happen on a backend or Supabase Edge Function, not directly in the browser.
+- The frontend uses the anon key only. Never put service-role keys in Next public environment variables.
+- Real marketplace OAuth token exchange should stay on backend routes, Supabase Edge Functions, or another trusted server. Do not put marketplace secrets in public browser variables.
 - If Supabase is not configured, the app falls back to demo mode.

@@ -9,8 +9,10 @@ Researched on May 10, 2026. Use this as implementation guidance, not legal advic
 | eBay | Official API path is viable | Use eBay Sell Inventory API, Account API, OAuth, seller business policies, inventory locations, offers, and publish offer calls. |
 | Facebook Marketplace | Treat as limited/manual unless Meta approves a commerce path | Do not scrape or automate Facebook Marketplace. Investigate Meta Commerce/Product Catalog only for eligible business use cases. |
 | Depop | Official API exists, but it is private | Depop says the Selling API is not available to the general public and requires contacting Depop for access. |
+| TikTok Shop | Official/partner API path | Use TikTok Shop Partner Center APIs only after app approval and seller authorization. |
 | Mercari | No public seller-listing API found | Mercari prohibits robots, crawlers, scrapers, and automated interfaces not provided by Mercari. Treat as manual or partner-only. |
 | Poshmark | No public seller-listing API found | Poshmark terms prohibit scraping, harvesting, crawling, or automated collection. Use manual exports such as My Inventory Report where appropriate. |
+| Etsy | Official API path is viable | Use Etsy Open API v3 and OAuth scopes for listings, inventory, receipts, and shop management. |
 
 ## eBay
 
@@ -72,6 +74,22 @@ Recommended next implementation:
 - Store Depop tokens server-side.
 - Add Depop taxonomy mapping before listing.
 
+## TikTok Shop
+
+Official source: [TikTok Shop Partner Center](https://partner.tiktokshop.com/)
+
+Key findings:
+
+- TikTok Shop provides partner APIs for approved apps and sellers.
+- Product listing, order, and inventory flows require seller authorization and app approval.
+- Treat TikTok Shop as a real future integration, not a scraping target.
+
+Recommended next implementation:
+
+- Create a TikTok Shop partner app.
+- Add OAuth flow and token storage on the backend.
+- Map product categories and shipping requirements before publishing.
+
 ## Mercari
 
 Official source: [Mercari Prohibited Conduct](https://www.mercari.com/us/help_center/topics/account/policies/prohibited-conduct/)
@@ -105,6 +123,22 @@ Recommended next implementation:
 - Keep Poshmark as a manual tracking/import channel.
 - Support CSV import from My Inventory Report later.
 - Do not build scraping or automated closet actions.
+
+## Etsy
+
+Official source: [Etsy Open API v3](https://developers.etsy.com/documentation/)
+
+Key findings:
+
+- Etsy has an official API with OAuth.
+- Listings, inventory, shop, and receipt flows are supported through official endpoints and scopes.
+
+Recommended next implementation:
+
+- Create an Etsy developer app.
+- Add OAuth server routes.
+- Store shop IDs and listing IDs.
+- Replace the mock Etsy adapter while keeping the adapter interface stable.
 
 ## Production Rule
 
